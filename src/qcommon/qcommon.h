@@ -18,10 +18,10 @@
 #define VERSION_DATE		"0504"
 #define VERSION_ITERATION	"01"
 
-#define VERSIONDISP			"R3" // Shown in console. //mxd. (VERSION_MAJOR"."VERSION_MINOR) in original logic.
+#define VERSIONDISP			"0.01" // Shown in console. //mxd. (VERSION_MAJOR"."VERSION_MINOR) in original logic.
 #define VERSIONFULL			(VERSION_MAJOR"."VERSION_MINOR"."VERSION_LOCAL"."VERSION_DATE"."VERSION_ITERATION) // Stored in version cvar.
 
-#define GAME_NAME			"Heretic2R" //mxd
+#define GAME_NAME			"Heretic2 DXR(H2R R3) " //mxd
 #define GAME_FULLNAME		GAME_NAME" "VERSIONDISP //mxd
 
 #ifdef _WIN32

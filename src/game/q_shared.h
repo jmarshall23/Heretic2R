@@ -15,6 +15,10 @@
 #include <stdlib.h>
 #include <time.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "H2Common.h"
 #include "Heretic2.h"
 #include "q_Typedef.h"
@@ -1076,3 +1080,7 @@ enum
 #define SKIN_MAX		(SKIN_REFLECTION + 1)
 
 #pragma endregion
+
+#ifdef __cplusplus
+};
+#endif

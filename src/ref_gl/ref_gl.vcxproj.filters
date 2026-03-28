@@ -1,0 +1,204 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{3b68eabf-e430-4470-b430-3f9d0e091b29}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="client">
+      <UniqueIdentifier>{ff52431e-ea05-452e-a647-fe5078db5540}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="qcommon">
+      <UniqueIdentifier>{4c59866a-09fb-455d-8f11-32a0bb10b6ba}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Skeletons">
+      <UniqueIdentifier>{6b434ae0-cd08-4784-beda-acd7474259d8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="game">
+      <UniqueIdentifier>{97d4ff17-f354-44fd-ad17-8c9cf53f908c}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\gl_Draw.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gl_DrawBook.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gl_DrawCinematic.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gl_Image.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gl_Main.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gl_Model.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gl_Sky.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gl_SDL.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gl_FindSurface.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gl_Debug.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\qcommon\anorms.c">
+      <Filter>qcommon</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gl_Misc.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\qcommon\turbsin.c">
+      <Filter>qcommon</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gl_FlexModel.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Hunk.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gl_Lightmap.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gl_Warp.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gl_Light.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\anormtab.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Skeletons\r_SkeletonLerp.cpp">
+      <Filter>src\Skeletons</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Skeletons\r_Skeletons.cpp">
+      <Filter>src\Skeletons</Filter>
+    </ClCompile>
+    <ClCompile Include="..\qcommon\Skeletons.c">
+      <Filter>qcommon</Filter>
+    </ClCompile>
+    <ClCompile Include="..\qcommon\Reference.c">
+      <Filter>qcommon</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gl_Surface.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\game\q_shared.c">
+      <Filter>game</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gl_Sprite.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gl_Matrix4.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\gl_Draw.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gl_DrawBook.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gl_DrawCinematic.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gl_Image.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gl_Local.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gl_Model.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gl_Sky.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gl_SDL.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gl_FindSurface.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gl_Debug.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\client\ref.h">
+      <Filter>client</Filter>
+    </ClInclude>
+    <ClInclude Include="..\qcommon\anorms.h">
+      <Filter>qcommon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gl_Misc.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\qcommon\turbsin.h">
+      <Filter>qcommon</Filter>
+    </ClInclude>
+    <ClInclude Include="..\client\vid.h">
+      <Filter>client</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gl_FlexModel.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Hunk.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gl_Lightmap.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gl_Warp.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gl_Light.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\anormtab.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Skeletons\m_SkeletalCluster.h">
+      <Filter>src\Skeletons</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Skeletons\m_Skeleton.h">
+      <Filter>src\Skeletons</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Skeletons\r_SkeletonLerp.h">
+      <Filter>src\Skeletons</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Skeletons\r_Skeletons.h">
+      <Filter>src\Skeletons</Filter>
+    </ClInclude>
+    <ClInclude Include="..\qcommon\Skeletons.h">
+      <Filter>qcommon</Filter>
+    </ClInclude>
+    <ClInclude Include="..\qcommon\Reference.h">
+      <Filter>qcommon</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gl_Surface.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\game\q_shared.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="..\game\game.h">
+      <Filter>game</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gl_Sprite.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gl_Matrix4.h">
+      <Filter>src</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ref_gl.def" />
+  </ItemGroup>
+</Project>
