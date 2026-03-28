@@ -7,12 +7,6 @@
 #include "SinglyLinkedList.h"
 #include "ResourceManager.h"
 
-typedef struct SinglyLinkedListNode_s
-{
-	union GenericUnion4_u data;
-	struct SinglyLinkedListNode_s* next;
-} SinglyLinkedListNode_t;
-
 ResourceManager_t sllist_nodes_mgr;
 
 H2COMMON_API void SLList_DefaultCon(SinglyLinkedList_t* this_ptr)

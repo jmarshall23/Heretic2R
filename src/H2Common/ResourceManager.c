@@ -5,56 +5,72 @@
 //
 
 #ifdef _DEBUG
-	#include <windows.h>
+#include <windows.h>
 #endif
+
+#include <stdlib.h>
+#include <assert.h>
+#include <stdint.h>
 
 #include "ResourceManager.h"
 #include "q_shared.h"
 
 typedef struct ResMngr_Block_s
 {
-	char* start;
-	uint size;
+	unsigned char* start;
+	size_t size;
 	struct ResMngr_Block_s* next;
 } ResMngr_Block_t;
 
+static size_t ResMngr_AlignUp(size_t value, size_t alignment)
+{
+	return (value + (alignment - 1)) & ~(alignment - 1);
+}
+
 static void ResMngr_CreateBlock(ResourceManager_t* resource)
 {
-	const uint block_size = resource->nodeSize * resource->resPerBlock;
-	char* block = malloc(block_size);
+	const size_t alignment = sizeof(void*);
+	const size_t block_size = resource->nodeSize * resource->resPerBlock;
+	unsigned char* block = (unsigned char*)malloc(block_size);
 
 	assert(block);
 
-	ResMngr_Block_t* temp = malloc(sizeof(ResMngr_Block_t));
+	ResMngr_Block_t* temp = (ResMngr_Block_t*)malloc(sizeof(ResMngr_Block_t));
+	assert(temp);
 
 	temp->start = block;
 	temp->size = block_size;
-	temp->next = resource->blockList;
+	temp->next = (ResMngr_Block_t*)resource->blockList;
+	resource->blockList = temp;
 
-	resource->blockList = temp; 
-	resource->free = (char**)block;
+	resource->free = (void**)block;
 
-	char** current = resource->free;
+	void** current = resource->free;
 
-	for (uint i = 0; i < resource->resPerBlock - 1; i++)
+	for (size_t i = 0; i < resource->resPerBlock - 1; ++i)
 	{
-		// Set current->next to point to next node.
-		*current = (char*)current + resource->nodeSize;
-
-		// Set current node to current->next.
-		current = (char**)(*current);
+		void* next = (void*)((unsigned char*)current + resource->nodeSize);
+		*current = next;
+		current = (void**)next;
 	}
 
-	//mxd. No current->next for the last block.
 	*current = NULL;
 }
 
-H2COMMON_API void ResMngr_Con(ResourceManager_t* resource, const uint init_resSize, const uint init_resPerBlock)
+H2COMMON_API void ResMngr_Con(ResourceManager_t* resource, const size_t init_resSize, const size_t init_resPerBlock)
 {
+	const size_t alignment = sizeof(void*);
+
 	resource->resSize = init_resSize;
 	resource->resPerBlock = init_resPerBlock;
-	resource->nodeSize = resource->resSize + sizeof(*resource->free);
+
+	// Each node is:
+	// [ next pointer ][ user payload ]
+	// and the whole node must remain pointer-aligned on x86/x64.
+	resource->nodeSize = ResMngr_AlignUp(sizeof(void*) + resource->resSize, alignment);
+
 	resource->blockList = NULL;
+	resource->free = NULL;
 
 #ifdef _DEBUG
 	resource->numResourcesAllocated = 0;
@@ -69,22 +85,26 @@ H2COMMON_API void ResMngr_Des(ResourceManager_t* resource)
 #ifdef _DEBUG
 	if (resource->numResourcesAllocated > 0)
 	{
-		char msg[100];
-		Com_sprintf(msg, sizeof(msg), "Potential memory leak: %d bytes unfreed\n", resource->resSize * resource->numResourcesAllocated); //mxd. sprintf -> Com_sprintf.
-		OutputDebugString(msg);
+		char msg[128];
+		Com_sprintf(msg, sizeof(msg),
+			"Potential memory leak: %zu bytes unfreed\n",
+			resource->resSize * resource->numResourcesAllocated);
+		OutputDebugStringA(msg);
 	}
 #endif
 
 	while (resource->blockList)
 	{
-		ResMngr_Block_t* toDelete = resource->blockList;
-		resource->blockList = resource->blockList->next;
+		ResMngr_Block_t* toDelete = (ResMngr_Block_t*)resource->blockList;
+		resource->blockList = toDelete->next;
 		free(toDelete->start);
 		free(toDelete);
 	}
+
+	resource->free = NULL;
 }
 
-H2COMMON_API void* ResMngr_AllocateResource(ResourceManager_t* resource, const uint size)
+H2COMMON_API void* ResMngr_AllocateResource(ResourceManager_t* resource, const size_t size)
 {
 	assert(size == resource->resSize);
 
@@ -92,25 +112,25 @@ H2COMMON_API void* ResMngr_AllocateResource(ResourceManager_t* resource, const u
 	resource->numResourcesAllocated++;
 #endif
 
-	// Constructor not called; possibly due to a static object containing a static ResourceManagerFastLarge
-	// member being constructed before its own static members.
-	assert(resource->free);	
+	assert(resource->free);
 
-	char** toPop = resource->free;
+	void** toPop = resource->free;
 
-	// Set unallocated to the next node and check for NULL (end of list).
-	resource->free = (char**)(*resource->free);
+	// Advance free list.
+	resource->free = (void**)(*toPop);
 	if (resource->free == NULL)
-		ResMngr_CreateBlock(resource); // If at end, create new block.
+	{
+		ResMngr_CreateBlock(resource);
+	}
 
-	// Set next to NULL.
+	// Clear next pointer in allocated node.
 	*toPop = NULL;
 
-	// Return the resource for the node.
-	return toPop + 1;
+	// Payload begins immediately after the next pointer.
+	return (void*)(toPop + 1);
 }
 
-H2COMMON_API void ResMngr_DeallocateResource(ResourceManager_t* resource, void* toDeallocate, const uint size)
+H2COMMON_API void ResMngr_DeallocateResource(ResourceManager_t* resource, void* toDeallocate, const size_t size)
 {
 	assert(size == resource->resSize);
 
@@ -119,14 +139,11 @@ H2COMMON_API void ResMngr_DeallocateResource(ResourceManager_t* resource, void* 
 	resource->numResourcesAllocated--;
 #endif
 
-	char** toPush = (char**)toDeallocate - 1;
+	assert(resource->free);
+	assert(toDeallocate);
 
-	// See same assert at top of AllocateResource.
-	assert(resource->free);	
+	void** toPush = ((void**)toDeallocate) - 1;
 
-	// Set toPush->next to current unallocated front.
-	*toPush = (char*)resource->free;
-
-	// Set unallocated to the node removed from allocated.
+	*toPush = (void*)resource->free;
 	resource->free = toPush;
 }

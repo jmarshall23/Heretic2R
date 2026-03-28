@@ -687,7 +687,7 @@ static void PlagueElfDeadPainMsgHandler(edict_t* self, G_Message_t* msg) //mxd. 
 
 static void PlagueElfPainMsgHandler(edict_t* self, G_Message_t* msg) //mxd. Named 'plagueElf_pain' in original logic.
 {
-	int temp;
+	void *temp;
 	int damage;
 	qboolean force_pain;
 	G_ParseMsgParms(msg, "eeiii", &temp, &temp, &force_pain, &damage, &temp);

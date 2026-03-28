@@ -397,7 +397,7 @@ void SV_ShutdownGameProgs(void)
 		ResMngr_Des(&EffectsBufferMngr);
 
 		ge->Shutdown();
-		Sys_UnloadGameDll("gamex86", &game_library); // H2
+		Sys_UnloadGameDll("gamex64", &game_library); // H2
 		ge = NULL;
 	}
 }
@@ -512,11 +512,11 @@ void SV_InitGameProgs(void)
 
 	//TODO: this breaks Windows logic separation.
 	DWORD checksum;
-	Sys_LoadGameDll("gamex86", &game_library, &checksum);
+	Sys_LoadGameDll("gamex64", &game_library, &checksum);
 
 	const GetGameAPI_t GetGameAPI = (GetGameAPI_t)GetProcAddress(game_library, "GetGameAPI");
 	if (GetGameAPI == NULL) // H2
-		Com_Error(ERR_DROP, "Failed to obtain 'Gamex86' API"); //mxd. Sys_Error() in original logic.
+		Com_Error(ERR_DROP, "Failed to obtain 'Gamex64' API"); //mxd. Sys_Error() in original logic.
 
 	ge = (*GetGameAPI)(&import);
 
@@ -526,10 +526,10 @@ void SV_InitGameProgs(void)
 	if (ge->apiversion != GAME_API_VERSION)
 	{
 		const int api_version = ge->apiversion; //mxd
-		Sys_UnloadGameDll("gamex86", &game_library); //mxd. Original logic calls SV_ShutdownGameProgs() instead (which calls ge->Shutdown() on un-initialized game library).
+		Sys_UnloadGameDll("gamex64", &game_library); //mxd. Original logic calls SV_ShutdownGameProgs() instead (which calls ge->Shutdown() on un-initialized game library).
 		ge = NULL;
 
-		Com_Error(ERR_DROP, "Unsupported Gamex86 version (expected %i, got %i)!", api_version, GAME_API_VERSION);
+		Com_Error(ERR_DROP, "Unsupported Gamex64 version (expected %i, got %i)!", api_version, GAME_API_VERSION);
 	}
 
 	ResMngr_Con(&sv_FXBufMngr, ENTITY_FX_BUF_SIZE, ENTITY_FX_BUF_BLOCK_SIZE);

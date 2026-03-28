@@ -18,6 +18,9 @@ size_t MSG_SetParms(SinglyLinkedList_t* parms, const char* format, va_list marke
 	int count = 0;
 	size_t bytesParsed = 0;
 
+	assert(parms);
+	assert(format);
+
 	SLList_Front(parms);
 
 	while (format[count] != 0)
@@ -26,41 +29,44 @@ size_t MSG_SetParms(SinglyLinkedList_t* parms, const char* format, va_list marke
 
 		switch (format[count])
 		{
-			case 'b':
-				parm.t_byte = va_arg(marker, byte);
-				bytesParsed += sizeof(parm.t_byte);
-				break;
+		case 'b':
+			// Default argument promotions: byte/char -> int
+			parm.t_byte = (byte)va_arg(marker, int);
+			bytesParsed += sizeof(parm.t_byte);
+			break;
 
-			case 's':
-				parm.t_short = va_arg(marker, short);
-				bytesParsed += sizeof(parm.t_short);
-				break;
+		case 's':
+			// Default argument promotions: short -> int
+			parm.t_short = (short)va_arg(marker, int);
+			bytesParsed += sizeof(parm.t_short);
+			break;
 
-			case 'i':
-				parm.t_int = va_arg(marker, int);
-				bytesParsed += sizeof(parm.t_int);
-				break;
+		case 'i':
+			parm.t_int = va_arg(marker, int);
+			bytesParsed += sizeof(parm.t_int);
+			break;
 
-			case 'f':
-				parm.t_float = (float)va_arg(marker, double);
-				bytesParsed += sizeof(parm.t_float); //mxd. sizeof(double) in original logic.
-				break;
+		case 'f':
+			// float is promoted to double in varargs
+			parm.t_float = (float)va_arg(marker, double);
+			bytesParsed += sizeof(parm.t_float);
+			break;
 
-			case 'e': // A pointer is a pointer is a pointer.
-			case 'v': // This better be not be a local variable or this will be bunk when the message is received and parsed.
-			case 'g': // g for generic.
-				parm.t_void_p = va_arg(marker, void*);
-				bytesParsed += sizeof(parm.t_void_p);
-				break;
+		case 'e': // A pointer is a pointer is a pointer.
+		case 'v': // This better not be a local variable or this will be bunk when the message is received and parsed.
+		case 'g': // g for generic.
+			parm.t_void_p = va_arg(marker, void*);
+			bytesParsed += sizeof(parm.t_void_p);
+			break;
 
-			case 'c':
-				parm.t_RGBA = va_arg(marker, paletteRGBA_t);
-				bytesParsed += sizeof(parm.t_RGBA);
-				break;
+		case 'c':
+			parm.t_RGBA = va_arg(marker, paletteRGBA_t);
+			bytesParsed += sizeof(parm.t_RGBA);
+			break;
 
-			default:
-				assert(0);
-				return 0; //mxd
+		default:
+			assert(0);
+			return 0;
 		}
 
 		if (append)
@@ -88,6 +94,7 @@ int MSG_GetParms(SinglyLinkedList_t* parms, const char* format, va_list marker) 
 {
 	int count = 0;
 
+	assert(parms);
 	assert(format);
 
 	if (format == NULL)
@@ -104,52 +111,53 @@ int MSG_GetParms(SinglyLinkedList_t* parms, const char* format, va_list marker) 
 	{
 		switch (format[count])
 		{
-			case 'b':
-			{
-				byte* b = va_arg(marker, byte*);
-				*b = SLList_PostIncrement(parms).t_byte;
-			} break;
+		case 'b':
+		{
+			byte* b = va_arg(marker, byte*);
+			*b = SLList_PostIncrement(parms).t_byte;
+		} break;
 
-			case 's':
-			{
-				short* s = va_arg(marker, short*);
-				*s = SLList_PostIncrement(parms).t_short;
-			} break;
+		case 's':
+		{
+			short* s = va_arg(marker, short*);
+			*s = SLList_PostIncrement(parms).t_short;
+		} break;
 
-			case 'i':
-			{
-				int* i = va_arg(marker, int*);
-				*i = SLList_PostIncrement(parms).t_int;
-			} break;
+		case 'i':
+		{
+			int* i = va_arg(marker, int*);
+			*i = SLList_PostIncrement(parms).t_int;
+		} break;
 
-			case 'f':
-			{
-				float* f = va_arg(marker, float*);
-				*f = SLList_PostIncrement(parms).t_float;
-			} break;
+		case 'f':
+		{
+			float* f = va_arg(marker, float*);
+			*f = SLList_PostIncrement(parms).t_float;
+		} break;
 
-			case 'v':
-			{
-				float* v = va_arg(marker, float*);
-				v = SLList_PostIncrement(parms).t_float_p;
-			} break;
+		case 'v':
+		{
+			// 'v' stores/returns a pointer value.
+			float** v = va_arg(marker, float**);
+			*v = SLList_PostIncrement(parms).t_float_p;
+		} break;
 
-			case 'e': // A pointer is a pointer is a pointer.
-			case 'g':
-			{
-				void** g = va_arg(marker, void**);
-				*g = SLList_PostIncrement(parms).t_void_p;
-			} break;
+		case 'e': // A pointer is a pointer is a pointer.
+		case 'g':
+		{
+			void** g = va_arg(marker, void**);
+			*g = SLList_PostIncrement(parms).t_void_p;
+		} break;
 
-			case 'c':
-			{
-				paletteRGBA_t* c = va_arg(marker, paletteRGBA_t*);
-				*c = SLList_PostIncrement(parms).t_RGBA;
-			} break;
+		case 'c':
+		{
+			paletteRGBA_t* c = va_arg(marker, paletteRGBA_t*);
+			*c = SLList_PostIncrement(parms).t_RGBA;
+		} break;
 
-			default:
-				assert(0);
-				return 0;
+		default:
+			assert(0);
+			return 0;
 		}
 
 		count++;
