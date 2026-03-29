@@ -12,7 +12,32 @@
 #endif
 #include "ref.h"
 
-#define REF_TITLE			"OpenGL 1.3" // H2_1.07: "GL 2.1"; Q2: "GL 0.01".
+#define REF_TITLE			"OpenGL 1.3(DXR)" // H2_1.07: "GL 2.1"; Q2: "GL 0.01".
+
+
+typedef struct dxrEntityCache_s
+{
+	glRaytracingMeshHandle_t      meshHandle;
+	glRaytracingInstanceHandle_t  instanceHandle;
+
+	glRaytracingVertex_t* vertices;
+	uint32_t* indices;
+	uint32_t                      vertexCount;
+	uint32_t                      indexCount;
+
+	int                           lastFrame;
+	int                           lastOldFrame;
+	float                         lastBacklerp;
+	vec3_t                        lastOrigin;
+	vec3_t                        lastAngles;
+	float                         lastScale;
+
+	qboolean                      meshValid;
+	qboolean                      meshDirty;
+	qboolean                      transformDirty;
+	qboolean                      touchedThisFrame;
+} dxrEntityCache_t;
+
 
 #define MAX_TEXTURE_UNITS	2
 

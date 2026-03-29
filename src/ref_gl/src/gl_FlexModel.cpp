@@ -15,6 +15,304 @@
 #include "Hunk.h"
 #include "Vector.h"
 
+#define MAX_DXR_ENTITY_CACHES 5000
+
+static void R_InterpolateVertexNormals(const int num_xyz, const float lerp, const fmtrivertx_t* verts, const fmtrivertx_t* old_verts, vec3_t* normals);
+
+dxrEntityCache_t g_dxrEntityCaches[MAX_DXR_ENTITY_CACHES];
+dxrEntityCache_t g_dxrAlphaEntityCaches[MAX_DXR_ENTITY_CACHES];
+bool g_dxrAnyTLASChange = false;
+
+static dxrEntityCache_t* R_GetDXRCacheForEntity(const entity_t* e)
+{
+	for (int i = 0; i < r_newrefdef.num_entities && i < MAX_DXR_ENTITY_CACHES; ++i)
+	{
+		if (r_newrefdef.entities[i] == e)
+			return &g_dxrEntityCaches[i];
+	}
+
+	for (int i = 0; i < r_newrefdef.num_alpha_entities && i < MAX_DXR_ENTITY_CACHES; ++i)
+	{
+		if (r_newrefdef.alpha_entities[i] == e)
+			return &g_dxrAlphaEntityCaches[i];
+	}
+
+	return NULL;
+}
+
+
+static uint32_t Mod_CountFlexModelIndices(const fmdl_t* fmdl)
+{
+	uint32_t total = 0;
+
+	for (int i = 0; i < fmdl->header.num_mesh_nodes; ++i)
+	{
+		int* order = &fmdl->glcmds[fmdl->mesh_nodes[i].start_glcmds];
+
+		for (;;)
+		{
+			int numVerts = *order++;
+			if (numVerts == 0)
+				break;
+
+			const qboolean isFan = (numVerts < 0);
+			if (isFan)
+				numVerts = -numVerts;
+
+			if (numVerts >= 3)
+				total += (uint32_t)((numVerts - 2) * 3);
+
+			order += numVerts * 3;
+		}
+	}
+
+	return total;
+}
+
+static void Mod_BuildFlexModelIndexBuffer(model_t* mod, const fmdl_t* fmdl)
+{
+	mod->dxrVertexCount = (uint32_t)fmdl->header.num_xyz;
+	mod->dxrIndexCount = Mod_CountFlexModelIndices(fmdl);
+
+	if(mod->dxrIndices == NULL)
+		mod->dxrIndices = (uint32_t*)Hunk_Alloc((int)(sizeof(uint32_t) * mod->dxrIndexCount));
+
+	uint32_t* out = mod->dxrIndices;
+
+	for (int i = 0; i < fmdl->header.num_mesh_nodes; ++i)
+	{
+		int* order = &fmdl->glcmds[fmdl->mesh_nodes[i].start_glcmds];
+
+		for (;;)
+		{
+			int numVerts = *order++;
+			if (numVerts == 0)
+				break;
+
+			qboolean isFan = false;
+			if (numVerts < 0)
+			{
+				numVerts = -numVerts;
+				isFan = true;
+			}
+
+			if (numVerts < 3)
+			{
+				order += numVerts * 3;
+				continue;
+			}
+
+			uint32_t local[1024]; // or temp alloc if you want safer sizing
+			assert(numVerts < 1024);
+
+			for (int v = 0; v < numVerts; ++v)
+			{
+				local[v] = (uint32_t)order[2];
+				order += 3;
+			}
+
+			if (isFan)
+			{
+				for (int v = 1; v + 1 < numVerts; ++v)
+				{
+					*out++ = local[0];
+					*out++ = local[v];
+					*out++ = local[v + 1];
+				}
+			}
+			else
+			{
+				for (int v = 0; v + 2 < numVerts; ++v)
+				{
+					if ((v & 1) == 0)
+					{
+						*out++ = local[v + 0];
+						*out++ = local[v + 1];
+						*out++ = local[v + 2];
+					}
+					else
+					{
+						*out++ = local[v + 1];
+						*out++ = local[v + 0];
+						*out++ = local[v + 2];
+					}
+				}
+			}
+		}
+	}
+}
+
+static void R_InterpolateFlexNormalsForDXR(const fmdl_t* fmdl, entity_t* e, vec3_t* outNormals)
+{
+	if (fmdl->frames == NULL)
+	{
+		for (int i = 0; i < fmdl->header.num_xyz; ++i)
+		{
+			const int n = fmdl->lightnormalindex[i];
+			VectorCopy(bytedirs[n], outNormals[i]);
+		}
+		return;
+	}
+
+	R_InterpolateVertexNormals(
+		fmdl->header.num_xyz,
+		e->backlerp,
+		sfl_cur_skel.verts,
+		sfl_cur_skel.old_verts,
+		outNormals);
+}
+
+static void R_FillFlexDXRVertices(model_t* mod, const fmdl_t* fmdl, entity_t* e, dxrEntityCache_t* cache)
+{
+	static vec3_t normals[MAX_FM_VERTS];
+
+	FrameLerp(fmdl, e);
+	R_InterpolateFlexNormalsForDXR(fmdl, e, normals);
+
+	if (cache->vertices == NULL)
+	{
+		cache->vertexCount = (uint32_t)fmdl->header.num_xyz;
+		cache->indexCount = mod->dxrIndexCount;
+
+		cache->vertices = (glRaytracingVertex_t*)malloc(sizeof(glRaytracingVertex_t) * cache->vertexCount);
+		cache->indices = (uint32_t*)malloc(sizeof(uint32_t) * cache->indexCount);
+
+		memcpy(cache->indices, mod->dxrIndices, sizeof(uint32_t) * cache->indexCount);
+	}
+
+	for (uint32_t i = 0; i < cache->vertexCount; ++i)
+	{
+		cache->vertices[i].xyz[0] = s_lerped[i][0];
+		cache->vertices[i].xyz[1] = s_lerped[i][1];
+		cache->vertices[i].xyz[2] = s_lerped[i][2];
+
+		cache->vertices[i].normal[0] = normals[i][0];
+		cache->vertices[i].normal[1] = normals[i][1];
+		cache->vertices[i].normal[2] = normals[i][2];
+
+		cache->vertices[i].st[0] = 0.0f;
+		cache->vertices[i].st[1] = 0.0f;
+	}
+}
+
+static void R_UpdateFlexModelDXRMesh(model_t* mod, const fmdl_t* fmdl, entity_t* e, dxrEntityCache_t* cache)
+{
+	Mod_BuildFlexModelIndexBuffer(mod, fmdl);
+	R_FillFlexDXRVertices(mod, fmdl, e, cache);
+
+	glRaytracingMeshDesc_t meshDesc;
+	memset(&meshDesc, 0, sizeof(meshDesc));
+	meshDesc.vertices = cache->vertices;
+	meshDesc.vertexCount = cache->vertexCount;
+	meshDesc.indices = cache->indices;
+	meshDesc.indexCount = cache->indexCount;
+	meshDesc.allowUpdate = 1;
+	meshDesc.opaque = 1;
+
+	if (!cache->meshValid)
+	{
+		cache->meshHandle = glRaytracingCreateMesh(&meshDesc);
+		cache->meshValid = (cache->meshHandle != 0);
+	}
+	else
+	{
+		glRaytracingUpdateMesh(cache->meshHandle, &meshDesc);
+	}
+}
+
+static void R_BuildEntityTransform3x4(const entity_t* e, float out[12])
+{
+	vec3_t angles =
+	{
+		e->angles[0] * RAD_TO_ANGLE,
+		e->angles[1] * RAD_TO_ANGLE * -1.0f,
+		e->angles[2] * RAD_TO_ANGLE,
+	};
+
+	vec3_t forward, right, up;
+	AngleVectors(angles, forward, right, up);
+
+	const float s = (e->cl_scale != 0.0f ? e->cl_scale : 1.0f);
+
+	out[0] = forward[0] * s;
+	out[1] = -right[0] * s;
+	out[2] = up[0] * s;
+	out[3] = e->origin[0];
+
+	out[4] = forward[1] * s;
+	out[5] = -right[1] * s;
+	out[6] = up[1] * s;
+	out[7] = e->origin[1];
+
+	out[8] = forward[2] * s;
+	out[9] = -right[2] * s;
+	out[10] = up[2] * s;
+	out[11] = e->origin[2];
+}
+
+static qboolean R_FlexModelPoseChanged(const entity_t* e, const dxrEntityCache_t* cache)
+{
+	if (e->frame != cache->lastFrame) return true;
+	if (e->oldframe != cache->lastOldFrame) return true;
+	if (fabsf(e->backlerp - cache->lastBacklerp) > 0.0001f) return true;
+	if (e->cl_scale != cache->lastScale) return true;
+	return false;
+}
+
+static qboolean R_FlexModelTransformChanged(const entity_t* e, const dxrEntityCache_t* cache)
+{
+	if (memcmp(e->origin, cache->lastOrigin, sizeof(vec3_t)) != 0) return true;
+	if (memcmp(e->angles, cache->lastAngles, sizeof(vec3_t)) != 0) return true;
+	return false;
+}
+
+static void R_StoreFlexModelState(const entity_t* e, dxrEntityCache_t* cache)
+{
+	cache->lastFrame = e->frame;
+	cache->lastOldFrame = e->oldframe;
+	cache->lastBacklerp = e->backlerp;
+	cache->lastScale = e->cl_scale;
+	VectorCopy(e->origin, cache->lastOrigin);
+	VectorCopy(e->angles, cache->lastAngles);
+}
+
+void R_EnsureFlexModelInDXR(entity_t* e)
+{
+	model_t* mod = *e->model;
+	fmdl_t* fmdl = (fmdl_t*)mod->extradata;
+	dxrEntityCache_t* cache = R_GetDXRCacheForEntity(e);
+
+	cache->touchedThisFrame = true;
+
+	const qboolean poseChanged = (!cache->meshValid || R_FlexModelPoseChanged(e, cache));
+	const qboolean xformChanged = (!cache->meshValid || R_FlexModelTransformChanged(e, cache));
+
+	if (poseChanged)
+	{
+		R_UpdateFlexModelDXRMesh(mod, fmdl, e, cache);
+		g_dxrAnyTLASChange = true;
+	}
+
+	if (cache->meshValid && (xformChanged || cache->instanceHandle == 0))
+	{
+		glRaytracingInstanceDesc_t instDesc;
+		memset(&instDesc, 0, sizeof(instDesc));
+		instDesc.meshHandle = cache->meshHandle;
+		instDesc.instanceID = (uint32_t)(cache - g_dxrEntityCaches);
+		instDesc.mask = 0xFF;
+		R_BuildEntityTransform3x4(e, instDesc.transform);
+
+		if (cache->instanceHandle == 0)
+			cache->instanceHandle = glRaytracingCreateInstance(&instDesc);
+		else
+			glRaytracingUpdateInstance(cache->instanceHandle, &instDesc);
+
+		g_dxrAnyTLASChange = true;
+	}
+
+	R_StoreFlexModelState(e, cache);
+}
+
 #pragma region ========================== FLEX MODEL LOADING ==========================
 
 static qboolean fmLoadHeader(fmdl_t* fmdl, model_t* model, const int version, const int datasize, const void* buffer)
@@ -622,23 +920,18 @@ static void R_DrawFlexFrameLerp(const fmdl_t* fmdl, entity_t* e, vec3_t shadelig
 			{
 				const int index_xyz = order[2];
 
-				if (draw_reflection || use_reflect)
-				{
-					vec3_t* normal;
-					if (fmdl->frames == NULL)
-						normal = &bytedirs[fmdl->lightnormalindex[index_xyz]];
-					else if (draw_reflection)
-						normal = &normals_array[index_xyz];
-					else
-						normal = &bytedirs[sfl_cur_skel.verts[index_xyz].lightnormalindex];
-
-					glNormal3f((*normal)[0], (*normal)[1], (*normal)[2]);
-				}
+				vec3_t* normal;
+				if (fmdl->frames == NULL)
+					normal = &bytedirs[fmdl->lightnormalindex[index_xyz]];
+				else if (draw_reflection)
+					normal = &normals_array[index_xyz];
 				else
-				{
-					// Texture coordinates come from the draw list.
-					glTexCoord2f(((float*)order)[0], ((float*)order)[1]);
-				}
+					normal = &bytedirs[sfl_cur_skel.verts[index_xyz].lightnormalindex];
+
+				glNormal3f((*normal)[0], (*normal)[1], (*normal)[2]);
+
+				// Texture coordinates come from the draw list.
+				glTexCoord2f(((float*)order)[0], ((float*)order)[1]);
 
 				order += 3;
 
@@ -694,6 +987,8 @@ void R_DrawFlexModel(entity_t* e)
 
 	if (R_CullFlexModel(fmdl, e))
 		return;
+
+	R_EnsureFlexModelInDXR(e);
 
 	// Get lighting information.
 	vec3_t shadelight;
@@ -752,6 +1047,16 @@ void R_DrawFlexModel(entity_t* e)
 		glDepthRange(gldepthmin, (gldepthmax - gldepthmin) * 0.3f + gldepthmin);
 
 	glPushMatrix();
+	glLoadIdentity();
+	R_RotateForEntity(e);
+
+	float entity_matrix[16];
+	glGetFloatv(GL_MODELVIEW_MATRIX, entity_matrix);
+	glLoadModelMatrixf(entity_matrix);
+	glPopMatrix();
+
+
+	glPushMatrix();
 	R_RotateForEntity(e);
 
 	// Select skin.
@@ -777,7 +1082,9 @@ void R_DrawFlexModel(entity_t* e)
 	if (!(int)r_lerpmodels->value)
 		e->backlerp = 0.0f;
 
+	glGeometryFlagf(GEOMETRY_FLAG_SKELETAL);
 	R_DrawFlexFrameLerp(fmdl, e, shadelight);
+	glGeometryFlagf(GEOMETRY_FLAG_NONE);
 
 	R_TexEnv(GL_REPLACE);
 	glShadeModel(GL_FLAT);
@@ -790,6 +1097,16 @@ void R_DrawFlexModel(entity_t* e)
 		glDepthRange(gldepthmin, gldepthmax);
 
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+	float identity[16] =
+	{
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	};
+
+	glLoadModelMatrixf(identity);
 }
 
 void R_LerpVert(const vec3_t new_point, const vec3_t old_point, vec3_t interpolated_point, const float move[3], const float frontv[3], const float backv[3])

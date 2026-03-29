@@ -990,6 +990,8 @@ static void Mod_ClearVertexNormals(model_t* model)
 // Q2 counterpart
 static void Mod_LoadBrushModel(model_t* mod, void* buffer)
 {
+	glRaytracingClear();
+
 	mod->type = mod_brush;
 	if (mod != mod_known)
 		ri.Sys_Error(ERR_DROP, "Loaded a brush model after the world");
