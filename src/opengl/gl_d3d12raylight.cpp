@@ -1644,10 +1644,10 @@ void RayGen()
         }
     }
 
-    lightingAccum = lightingAccum * ao * 2;
+    lightingAccum = lightingAccum * ao * 1.5;
 
     if(geoFlag == GEOMETRY_FLAG_SKELETAL) {
-        lightingAccum = lightingAccum * 1.2;
+        lightingAccum = lightingAccum * 2;
     }
 
     if(geoFlag == GEOMETRY_FLAG_UNLIT) 
