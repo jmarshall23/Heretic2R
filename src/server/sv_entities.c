@@ -859,7 +859,7 @@ void SV_BuildClientFrame(client_t* client)
 		}
 
 		// Ignore ents without visible models unless they have an effect.
-		if (!ent->s.modelindex && !ent->s.effects && !ent->s.sound)
+		if (!ent->s.modelindex && !ent->s.light && !ent->s.effects && !ent->s.sound)
 			continue;
 
 		const float dist = VectorSeparation(org, ent->s.origin);
@@ -899,7 +899,7 @@ void SV_BuildClientFrame(client_t* client)
 		}
 
 		// Add ent to the circular client_entities array?
-		if (ent->s.modelindex != 0 || (ent->s.effects & EF_NODRAW_ALWAYS_SEND) || dist <= 2000.0f)
+		if (ent->s.modelindex != 0 || ent->s.light > 0 || (ent->s.effects & EF_NODRAW_ALWAYS_SEND) || dist <= 2000.0f)
 		{
 			ent->client_sent |= ent_id;
 			AddClientEntity(client, frame, ent, e); //mxd

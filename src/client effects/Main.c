@@ -717,11 +717,12 @@ static void AddServerEntities(const frame_t* frame)
 		else
 		{
 			// Cull (any eligible) entire models before they get rendered
-			if (s1->modelindex > 0)
+			if (s1->modelindex > 0 || s1->light > 0)
 			{
 				ent->depth = VectorSeparation(ent->origin, fxi.cl->refdef.vieworg);
 
 				AddEntityToView(ent);
+
 				cent->entity = ent; // So client effects can play with owners entity.
 
 				ent++;

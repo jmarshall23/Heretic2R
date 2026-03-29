@@ -160,7 +160,9 @@ static void R_DrawEntitiesOnList(void)
 			light.position.y = ent->origin[1];
 			light.position.z = ent->origin[2];
 			glRaytracingLightingAddLight(&light);
-			continue;
+
+			//if (ent->model == NULL || *ent->model == NULL)
+				continue;
 		}
 
 		if (ent->model == NULL) // H2: extra sanity check.

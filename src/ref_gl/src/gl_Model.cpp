@@ -747,10 +747,6 @@ static void Mod_LoadFaces(model_t* loadmodel, const byte* mod_base, const lump_t
 
 		if (!(out->texinfo->flags & SURF_WARP))
 		{
-			Mod_AccumulateSurfaceNormal(loadmodel, out);
-			for (int i = 0; i < loadmodel->numvertexes; ++i)
-				Mod_NormalizeVec3(loadmodel->vertexes[i].normal);
-
 			LM_BuildPolygonFromSurface(loadmodel, out);
 		}
 	}
@@ -923,67 +919,6 @@ static void Mod_LoadSubmodels(model_t* loadmodel, byte* mod_base, const lump_t* 
 		out->headnode = LittleLong(in->headnode);
 		out->firstface = LittleLong(in->firstface);
 		out->numfaces = LittleLong(in->numfaces);
-	}
-}
-
-
-static void Mod_AddVec3(float a[3], const float b[3])
-{
-	a[0] += b[0];
-	a[1] += b[1];
-	a[2] += b[2];
-}
-
-static void Mod_AccumulateSurfaceNormal(model_t* model, const msurface_t* surf)
-{
-	if (surf->numedges < 3)
-		return;
-
-	const int i0 = Mod_GetFaceVertexIndex(model, surf, 0);
-	const int i1 = Mod_GetFaceVertexIndex(model, surf, 1);
-	const int i2 = Mod_GetFaceVertexIndex(model, surf, 2);
-
-	const mvertex_t* v0 = &model->vertexes[i0];
-	const mvertex_t* v1 = &model->vertexes[i1];
-	const mvertex_t* v2 = &model->vertexes[i2];
-
-	float e0[3];
-	float e1[3];
-	float faceNormal[3];
-
-	Mod_SubtractVec3(v1->position, v0->position, e0);
-	Mod_SubtractVec3(v2->position, v0->position, e1);
-	Mod_CrossProduct(e0, e1, faceNormal);
-	Mod_NormalizeVec3(faceNormal);
-
-	if (Mod_DotProduct(faceNormal, surf->plane->normal) < 0.0f)
-	{
-		faceNormal[0] = -faceNormal[0];
-		faceNormal[1] = -faceNormal[1];
-		faceNormal[2] = -faceNormal[2];
-	}
-
-	if (surf->flags & SURF_PLANEBACK)
-	{
-		faceNormal[0] = -faceNormal[0];
-		faceNormal[1] = -faceNormal[1];
-		faceNormal[2] = -faceNormal[2];
-	}
-
-	for (int j = 0; j < surf->numedges; ++j)
-	{
-		const int vIndex = Mod_GetFaceVertexIndex(model, surf, j);
-		Mod_AddVec3(model->vertexes[vIndex].normal, faceNormal);
-	}
-}
-
-static void Mod_ClearVertexNormals(model_t* model)
-{
-	for (int i = 0; i < model->numvertexes; ++i)
-	{
-		model->vertexes[i].normal[0] = 0.0f;
-		model->vertexes[i].normal[1] = 0.0f;
-		model->vertexes[i].normal[2] = 0.0f;
 	}
 }
 

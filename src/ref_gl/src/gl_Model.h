@@ -14,7 +14,6 @@
 typedef struct
 {
 	vec3_t position;
-	vec3_t normal;
 } mvertex_t;
 
 // Q2 counterpart

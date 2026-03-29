@@ -1209,7 +1209,7 @@ float TraceShadow(float3 origin, float3 dir, float maxT)
     RayDesc ray;
     ray.Origin = origin;
     ray.Direction = dir;
-    ray.TMin = 0.001;
+    ray.TMin = 0.01;
     ray.TMax = maxT;
 
     ShadowPayload payload;
@@ -1644,7 +1644,7 @@ void RayGen()
         }
     }
 
-    lightingAccum = lightingAccum * ao * 2.2;
+    lightingAccum = lightingAccum * ao * 2;
 
     if(geoFlag == GEOMETRY_FLAG_SKELETAL) {
         lightingAccum = lightingAccum * 1.2;

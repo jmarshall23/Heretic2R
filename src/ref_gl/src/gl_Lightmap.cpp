@@ -95,29 +95,41 @@ void LM_BuildPolygonFromSurface(const model_t* mdl, msurface_t* fa) //mxd. Origi
 	const int lnumverts = fa->numedges;
 
 	// Draw texture.
-	glpoly_t* poly = (glpoly_t * )Hunk_Alloc((int)sizeof(glpoly_t) + (lnumverts - 4) * VERTEXSIZE * sizeof(float));
+	glpoly_t* poly = (glpoly_t*)Hunk_Alloc((int)sizeof(glpoly_t) + (lnumverts - 4) * VERTEXSIZE * sizeof(float));
 	poly->next = fa->polys;
 	poly->flags = fa->flags;
 	fa->polys = poly;
 	poly->numverts = lnumverts;
+
+	// Use the surface plane normal for every vertex of this polygon.
+	float faceNormal[3] =
+	{
+		fa->plane->normal[0],
+		fa->plane->normal[1],
+		fa->plane->normal[2]
+	};
+
+	if (fa->flags & SURF_PLANEBACK)
+	{
+		faceNormal[0] = -faceNormal[0];
+		faceNormal[1] = -faceNormal[1];
+		faceNormal[2] = -faceNormal[2];
+	}
 
 	for (int i = 0; i < lnumverts; i++)
 	{
 		const int lindex = mdl->surfedges[fa->firstedge + i];
 
 		float* vec;
-		float* normal;
 		if (lindex > 0)
 		{
 			const medge_t* r_pedge = &pedges[lindex];
 			vec = mdl->vertexes[r_pedge->v[0]].position;
-			normal = mdl->vertexes[r_pedge->v[0]].normal;
 		}
 		else
 		{
 			const medge_t* r_pedge = &pedges[-lindex];
 			vec = mdl->vertexes[r_pedge->v[1]].position;
-			normal = mdl->vertexes[r_pedge->v[1]].normal;
 		}
 
 		float s = DotProduct(vec, fa->texinfo->vecs[0]) + fa->texinfo->vecs[0][3];
@@ -146,9 +158,9 @@ void LM_BuildPolygonFromSurface(const model_t* mdl, msurface_t* fa) //mxd. Origi
 		poly->verts[i][5] = s;
 		poly->verts[i][6] = t;
 
-		poly->verts[i][7] = normal[0];
-		poly->verts[i][8] = normal[1];
-		poly->verts[i][9] = normal[2];
+		poly->verts[i][7] = faceNormal[0];
+		poly->verts[i][8] = faceNormal[1];
+		poly->verts[i][9] = faceNormal[2];
 	}
 }
 
