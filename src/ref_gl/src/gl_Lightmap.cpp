@@ -106,15 +106,18 @@ void LM_BuildPolygonFromSurface(const model_t* mdl, msurface_t* fa) //mxd. Origi
 		const int lindex = mdl->surfedges[fa->firstedge + i];
 
 		float* vec;
+		float* normal;
 		if (lindex > 0)
 		{
 			const medge_t* r_pedge = &pedges[lindex];
 			vec = mdl->vertexes[r_pedge->v[0]].position;
+			normal = mdl->vertexes[r_pedge->v[0]].normal;
 		}
 		else
 		{
 			const medge_t* r_pedge = &pedges[-lindex];
 			vec = mdl->vertexes[r_pedge->v[1]].position;
+			normal = mdl->vertexes[r_pedge->v[1]].normal;
 		}
 
 		float s = DotProduct(vec, fa->texinfo->vecs[0]) + fa->texinfo->vecs[0][3];
@@ -142,6 +145,10 @@ void LM_BuildPolygonFromSurface(const model_t* mdl, msurface_t* fa) //mxd. Origi
 
 		poly->verts[i][5] = s;
 		poly->verts[i][6] = t;
+
+		poly->verts[i][7] = normal[0];
+		poly->verts[i][8] = normal[1];
+		poly->verts[i][9] = normal[2];
 	}
 }
 

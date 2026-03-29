@@ -650,6 +650,8 @@ static void R_RenderLightmappedPoly(const entity_t* ent, msurface_t* surf) //mxd
 	int lmtex = surf->lightmaptexturenum;
 	qboolean lightmap_updated = false;
 
+	R_EnableMultitexture(false);
+
 	for (map = 0; map < MAXLIGHTMAPS && surf->styles[map] != 255; map++)
 	{
 		if (r_newrefdef.lightstyles[surf->styles[map]].white != surf->cached_light[map])
@@ -700,10 +702,14 @@ static void R_RenderLightmappedPoly(const entity_t* ent, msurface_t* surf) //mxd
 		{
 			glMultiTexCoord2f(GL_TEXTURE0, v[3], v[4]);
 			glMultiTexCoord2f(GL_TEXTURE1, v[5], v[6]);
+			glNormal3f(v[7], v[8], v[9]);
 			glVertex3fv(v);
+			
 		}
 		glEnd();
 	}
+
+	R_EnableMultitexture(true); 
 }
 
 static void R_DrawTextureChains(const entity_t* ent) // Q2: DrawTextureChains(). //mxd. Added 'ent' arg.

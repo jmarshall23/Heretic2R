@@ -14,6 +14,7 @@
 typedef struct
 {
 	vec3_t position;
+	vec3_t normal;
 } mvertex_t;
 
 // Q2 counterpart
@@ -56,7 +57,7 @@ typedef struct mtexinfo_s
 	image_t* image;
 } mtexinfo_t;
 
-#define	VERTEXSIZE	7
+#define	VERTEXSIZE	10
 
 // Q2 counterpart
 typedef struct glpoly_s
@@ -211,6 +212,18 @@ typedef struct model_s
 
 	int extradatasize;
 	void* extradata;
+
+// jmarshall - DXR
+	glRaytracingMeshHandle_t      dxrMesh;
+	glRaytracingInstanceHandle_t  dxrInstance;
+	qboolean                      dxrValid;
+
+	glRaytracingVertex_t* dxrVertices;
+	uint32_t                      dxrVertexCount;
+
+	uint32_t* dxrIndices;
+	uint32_t                      dxrIndexCount;
+// jmarshall end
 } model_t;
 
 #pragma endregion

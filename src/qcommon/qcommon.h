@@ -341,6 +341,11 @@ enum clc_ops_e
 #define U_CLIENTNUM			32
 #define U_BBOX				33 //mxd. Requires H2R_PROTOCOL_VERSION!
 
+#define U_LIGHT				34 //jmarshall
+#define U_LIGHT_COLOR_R		35
+#define U_LIGHT_COLOR_G		36
+#define U_LIGHT_COLOR_B		37
+
 #define U_FM_HIGH			(1 << 7) // Means more then the first 7 updates.
 
 #define U_FM_FRAME			(1 << 0) // Individual bits for each update.

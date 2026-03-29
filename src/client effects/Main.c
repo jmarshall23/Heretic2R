@@ -566,6 +566,11 @@ static void AddServerEntities(const frame_t* frame)
 		ent->scale = s1->scale;
 		ent->color = (s1->color.c != 0 ? s1->color : color_white);
 
+		ent->light = s1->light;
+		ent->lightColor[0] = s1->lightColor[0];
+		ent->lightColor[1] = s1->lightColor[1];
+		ent->lightColor[2] = s1->lightColor[2];
+
 		ent->absLight.r = s1->absLight.r;
 		ent->absLight.g = s1->absLight.g;
 		ent->absLight.b = s1->absLight.b;

@@ -369,6 +369,18 @@ void MSG_WriteDeltaEntity(const entity_state_t* from, entity_state_t* to, sizebu
 	if (to->number >= 256)
 		SetB(bits, U_NUMBER16);
 
+	if (to->light != from->light)
+		SetB(bits, U_LIGHT);
+
+	if (to->lightColor[0] != from->lightColor[0])
+		SetB(bits, U_LIGHT_COLOR_R);
+
+	if (to->lightColor[1] != from->lightColor[1])
+		SetB(bits, U_LIGHT_COLOR_G);
+
+	if (to->lightColor[2] != from->lightColor[2])
+		SetB(bits, U_LIGHT_COLOR_B);
+
 	// Origin
 	if (to->origin[0] != from->origin[0] || to->origin[1] != from->origin[1])
 		SetB(bits, U_ORIGIN12);
@@ -552,6 +564,18 @@ void MSG_WriteDeltaEntity(const entity_state_t* from, entity_state_t* to, sizebu
 		MSG_WriteShort(msg, to->number);
 	else
 		MSG_WriteByte(msg, to->number);
+
+	if (GetB(bits, U_LIGHT))
+		MSG_WriteShort(msg, to->light);
+
+	if (GetB(bits, U_LIGHT_COLOR_R))
+		MSG_WriteFloat(msg, to->lightColor[0]);
+
+	if (GetB(bits, U_LIGHT_COLOR_G))
+		MSG_WriteFloat(msg, to->lightColor[1]);
+
+	if (GetB(bits, U_LIGHT_COLOR_B))
+		MSG_WriteFloat(msg, to->lightColor[2]);
 
 	if (GetB(bits, U_MODEL))
 		MSG_WriteByte(msg, to->modelindex);

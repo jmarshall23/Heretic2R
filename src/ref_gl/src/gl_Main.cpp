@@ -147,6 +147,22 @@ static void R_DrawEntitiesOnList(void)
 	{
 		entity_t* ent = r_newrefdef.entities[i]; //mxd. Original logic uses 'currententity' global var.
 
+		if (ent->light > 0)
+		{
+			glRaytracingLight_t light = {};
+			light.color.x = ent->lightColor[0];
+			light.color.y = ent->lightColor[1];
+			light.color.z = ent->lightColor[2];
+			light.type = GL_RAYTRACING_LIGHT_TYPE_POINT;
+			light.radius = ent->light;
+			light.intensity = 1;
+			light.position.x = ent->origin[0];
+			light.position.y = ent->origin[1];
+			light.position.z = ent->origin[2];
+			glRaytracingLightingAddLight(&light);
+			continue;
+		}
+
 		if (ent->model == NULL) // H2: extra sanity check.
 		{
 			ri.Con_Printf(PRINT_ALL, "Attempt to draw NULL model\n"); //mxd. Com_Printf() -> ri.Con_Printf().
@@ -892,6 +908,37 @@ static void RI_BeginFrame(const float camera_separation) //TODO: remove camera_s
 	R_Clear();
 }
 
+static void R_BuildViewMatrixFromRefdef(const refdef_t* rd, Mat4* outView)
+{
+	vec3_t forward, right, up;
+	const vec3_t org = { rd->vieworg[0], rd->vieworg[1], rd->vieworg[2] };
+
+	// Quake 2 gives angles, not viewaxis.
+	// This builds the world-space camera basis.
+	AngleVectors(rd->viewangles, forward, right, up);
+
+	// Row-major view matrix = inverse of camera world transform.
+	outView->m[0] = right[0];
+	outView->m[1] = up[0];
+	outView->m[2] = -forward[0];
+	outView->m[3] = 0.0f;
+
+	outView->m[4] = right[1];
+	outView->m[5] = up[1];
+	outView->m[6] = -forward[1];
+	outView->m[7] = 0.0f;
+
+	outView->m[8] = right[2];
+	outView->m[9] = up[2];
+	outView->m[10] = -forward[2];
+	outView->m[11] = 0.0f;
+
+	outView->m[12] = -(org[0] * right[0] + org[1] * right[1] + org[2] * right[2]);
+	outView->m[13] = -(org[0] * up[0] + org[1] * up[1] + org[2] * up[2]);
+	outView->m[14] = (org[0] * forward[0] + org[1] * forward[1] + org[2] * forward[2]);
+	outView->m[15] = 1.0f;
+}
+
 static void R_RenderView(const refdef_t* fd)
 {
 	if ((int)r_norefresh->value)
@@ -912,6 +959,24 @@ static void R_RenderView(const refdef_t* fd)
 
 	if ((int)gl_finish->value)
 		glFinish();
+// jmarshall - DXR
+	Mat4 view, proj, viewProj, invViewProj;
+
+	R_BuildViewMatrixFromRefdef(fd, &view);
+	memcpy(proj.m, r_projection_matrix, sizeof(float) * 16);
+	Mat4 invViewMatrix;
+	Mat4::Invert(&view, &invViewMatrix);
+	viewProj = Mat4::Multiply(proj, view);
+	Mat4::Invert(&viewProj, &invViewProj);
+
+	glRaytracingLightingSetInvViewMatrix(invViewMatrix.m);
+	glRaytracingLightingSetInvViewProjMatrix(invViewProj.m);
+
+	glRaytracingLightingSetCameraPosition(
+		fd->vieworg[0],
+		fd->vieworg[1],
+		fd->vieworg[2]);
+// jmarshall end
 
 	R_SetupFrame();
 	R_SetFrustum();
@@ -920,7 +985,11 @@ static void R_RenderView(const refdef_t* fd)
 	R_ResetBmodelTransforms(); //mxd
 	R_DrawWorld();
 	R_DrawEntitiesOnList();
-	R_RenderDlights();
+	//R_RenderDlights();
+
+	glFinish();
+	glLightScene();
+	glRaytracingLightingClearLights(false);
 
 	// Changed in H2:
 	glDepthMask(GL_FALSE);

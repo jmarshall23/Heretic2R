@@ -111,6 +111,22 @@ void CL_ParseDelta(const entity_state_t* from, entity_state_t* to, const int num
 	// H2: missing VectorCopy(from->origin, to->old_origin);
 	to->number = (short)number;
 
+	if (GetB(bits, U_LIGHT))
+		to->light = MSG_ReadShort(&net_message);
+
+	if (GetB(bits, U_LIGHT_COLOR_R))
+		to->lightColor[0] = MSG_ReadFloat(&net_message);
+
+	if (GetB(bits, U_LIGHT_COLOR_G))
+		to->lightColor[1] = MSG_ReadFloat(&net_message);
+
+	if (GetB(bits, U_LIGHT_COLOR_B))
+		to->lightColor[2] = MSG_ReadFloat(&net_message);
+
+
+
+	
+
 	if (GetB(bits, U_MODEL))
 		to->modelindex = (byte)MSG_ReadByte(&net_message);
 

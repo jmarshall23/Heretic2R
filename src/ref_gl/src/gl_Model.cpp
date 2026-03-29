@@ -186,6 +186,276 @@ static void Mod_LoadSpriteModel(model_t* mod, const void* buffer, const int leng
 
 #pragma region ========================== BRUSHMODEL LOADING ==========================
 
+static int Mod_GetFaceVertexIndex(const model_t* model, const msurface_t* surf, const int faceVert)
+{
+	const int surfedge = model->surfedges[surf->firstedge + faceVert];
+
+	if (surfedge >= 0)
+		return model->edges[surfedge].v[0];
+	else
+		return model->edges[-surfedge].v[1];
+}
+
+static void Mod_BuildDXRVertex(
+	glRaytracingVertex_t* out,
+	const mvertex_t* v,
+	const msurface_t* surf)
+{
+	out->xyz[0] = v->position[0];
+	out->xyz[1] = v->position[1];
+	out->xyz[2] = v->position[2];
+
+	out->normal[0] = surf->plane->normal[0];
+	out->normal[1] = surf->plane->normal[1];
+	out->normal[2] = surf->plane->normal[2];
+
+	if (surf->flags & SURF_PLANEBACK)
+	{
+		out->normal[0] = -out->normal[0];
+		out->normal[1] = -out->normal[1];
+		out->normal[2] = -out->normal[2];
+	}
+
+	const mtexinfo_t* tex = surf->texinfo;
+
+	out->st[0] =
+		v->position[0] * tex->vecs[0][0] +
+		v->position[1] * tex->vecs[0][1] +
+		v->position[2] * tex->vecs[0][2] +
+		tex->vecs[0][3];
+
+	out->st[1] =
+		v->position[0] * tex->vecs[1][0] +
+		v->position[1] * tex->vecs[1][1] +
+		v->position[2] * tex->vecs[1][2] +
+		tex->vecs[1][3];
+}
+
+static qboolean Mod_ShouldBuildDXRSurface(const msurface_t* surf)
+{
+	if (surf->numedges < 3)
+		return false;
+
+	if (surf->flags & SURF_DRAWTURB)
+		return false;
+
+	if (surf->flags & SURF_DRAWSKY)
+		return false;
+
+	if (surf->flags & SURF_SKIPDRAW)
+		return false;
+
+	return true;
+}
+
+static void Mod_CountDXRGeometry(const model_t* model, uint32_t* outVerts, uint32_t* outIndices)
+{
+	uint32_t vertexCount = 0;
+	uint32_t indexCount = 0;
+
+	for (int i = 0; i < model->numsurfaces; ++i)
+	{
+		const msurface_t* surf = &model->surfaces[i];
+
+		if (!Mod_ShouldBuildDXRSurface(surf))
+			continue;
+
+		vertexCount += (uint32_t)surf->numedges;
+		indexCount += (uint32_t)((surf->numedges - 2) * 3);
+	}
+
+	*outVerts = vertexCount;
+	*outIndices = indexCount;
+}
+
+static void Mod_CrossProduct(const float a[3], const float b[3], float out[3])
+{
+	out[0] = a[1] * b[2] - a[2] * b[1];
+	out[1] = a[2] * b[0] - a[0] * b[2];
+	out[2] = a[0] * b[1] - a[1] * b[0];
+}
+
+static float Mod_DotProduct(const float a[3], const float b[3])
+{
+	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+static void Mod_SubtractVec3(const float a[3], const float b[3], float out[3])
+{
+	out[0] = a[0] - b[0];
+	out[1] = a[1] - b[1];
+	out[2] = a[2] - b[2];
+}
+
+static void Mod_NormalizeVec3(float v[3])
+{
+	const float lenSq = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
+	if (lenSq > 0.0f)
+	{
+		const float invLen = 1.0f / sqrtf(lenSq);
+		v[0] *= invLen;
+		v[1] *= invLen;
+		v[2] *= invLen;
+	}
+}
+
+static void Mod_CalculateSurfaceNormal(const model_t* model, const msurface_t* surf, float outNormal[3])
+{
+	outNormal[0] = 0.0f;
+	outNormal[1] = 0.0f;
+	outNormal[2] = 1.0f;
+
+	if (surf->numedges < 3)
+		return;
+
+	const int i0 = Mod_GetFaceVertexIndex(model, surf, 0);
+	const int i1 = Mod_GetFaceVertexIndex(model, surf, 1);
+	const int i2 = Mod_GetFaceVertexIndex(model, surf, 2);
+
+	const mvertex_t* v0 = &model->vertexes[i0];
+	const mvertex_t* v1 = &model->vertexes[i1];
+	const mvertex_t* v2 = &model->vertexes[i2];
+
+	float e0[3];
+	float e1[3];
+
+	Mod_SubtractVec3(v1->position, v0->position, e0);
+	Mod_SubtractVec3(v2->position, v0->position, e1);
+
+	Mod_CrossProduct(e0, e1, outNormal);
+	Mod_NormalizeVec3(outNormal);
+
+	// Keep winding consistent with the BSP plane.
+	if (Mod_DotProduct(outNormal, surf->plane->normal) < 0.0f)
+	{
+		outNormal[0] = -outNormal[0];
+		outNormal[1] = -outNormal[1];
+		outNormal[2] = -outNormal[2];
+	}
+
+	if (surf->flags & SURF_PLANEBACK)
+	{
+		outNormal[0] = -outNormal[0];
+		outNormal[1] = -outNormal[1];
+		outNormal[2] = -outNormal[2];
+	}
+}
+
+static void Mod_BuildDXRVertex(
+	glRaytracingVertex_t* out,
+	const mvertex_t* v,
+	const msurface_t* surf,
+	const float faceNormal[3])
+{
+	out->xyz[0] = v->position[0];
+	out->xyz[1] = v->position[1];
+	out->xyz[2] = v->position[2];
+
+	out->normal[0] = faceNormal[0];
+	out->normal[1] = faceNormal[1];
+	out->normal[2] = faceNormal[2];
+
+	const mtexinfo_t* tex = surf->texinfo;
+
+	out->st[0] =
+		v->position[0] * tex->vecs[0][0] +
+		v->position[1] * tex->vecs[0][1] +
+		v->position[2] * tex->vecs[0][2] +
+		tex->vecs[0][3];
+
+	out->st[1] =
+		v->position[0] * tex->vecs[1][0] +
+		v->position[1] * tex->vecs[1][1] +
+		v->position[2] * tex->vecs[1][2] +
+		tex->vecs[1][3];
+}
+
+static void Mod_BuildDXRMeshData(model_t* model)
+{
+	uint32_t totalVerts = 0;
+	uint32_t totalIndices = 0;
+
+	Mod_CountDXRGeometry(model, &totalVerts, &totalIndices);
+
+	if (totalVerts == 0 || totalIndices == 0)
+		return;
+
+	model->dxrVertices = (glRaytracingVertex_t*)Hunk_Alloc((int)(sizeof(glRaytracingVertex_t) * totalVerts));
+	model->dxrIndices = (uint32_t*)Hunk_Alloc((int)(sizeof(uint32_t) * totalIndices));
+
+	model->dxrVertexCount = totalVerts;
+	model->dxrIndexCount = totalIndices;
+
+	uint32_t baseVertex = 0;
+	uint32_t baseIndex = 0;
+
+	for (int i = 0; i < model->numsurfaces; ++i)
+	{
+		const msurface_t* surf = &model->surfaces[i];
+
+		if (!Mod_ShouldBuildDXRSurface(surf))
+			continue;
+
+		const uint32_t faceVertCount = (uint32_t)surf->numedges;
+		float faceNormal[3];
+
+		Mod_CalculateSurfaceNormal(model, surf, faceNormal);
+
+		for (uint32_t j = 0; j < faceVertCount; ++j)
+		{
+			const int vIndex = Mod_GetFaceVertexIndex(model, surf, (int)j);
+			const mvertex_t* src = &model->vertexes[vIndex];
+			Mod_BuildDXRVertex(&model->dxrVertices[baseVertex + j], src, surf, faceNormal);
+		}
+
+		for (uint32_t j = 1; j + 1 < faceVertCount; ++j)
+		{
+			model->dxrIndices[baseIndex + 0] = baseVertex + 0;
+			model->dxrIndices[baseIndex + 1] = baseVertex + j;
+			model->dxrIndices[baseIndex + 2] = baseVertex + j + 1;
+			baseIndex += 3;
+		}
+
+		baseVertex += faceVertCount;
+	}
+}
+
+static void Mod_CreateDXRBSPResource(model_t* model)
+{
+	if (model->dxrVertexCount == 0 || model->dxrIndexCount == 0)
+		return;
+
+	glRaytracingMeshDesc_t meshDesc;
+	memset(&meshDesc, 0, sizeof(meshDesc));
+
+	meshDesc.vertices = model->dxrVertices;
+	meshDesc.vertexCount = model->dxrVertexCount;
+	meshDesc.indices = model->dxrIndices;
+	meshDesc.indexCount = model->dxrIndexCount;
+	meshDesc.allowUpdate = 0;
+	meshDesc.opaque = 1;
+
+	model->dxrMesh = glRaytracingCreateMesh(&meshDesc);
+
+	if (!model->dxrMesh)
+		return;
+
+	glRaytracingInstanceDesc_t instDesc;
+	memset(&instDesc, 0, sizeof(instDesc));
+
+	instDesc.meshHandle = model->dxrMesh;
+	instDesc.instanceID = 0;
+	instDesc.mask = 0xFF;
+
+	// identity 3x4 row-major
+	instDesc.transform[0] = 1.0f; instDesc.transform[1] = 0.0f; instDesc.transform[2] = 0.0f; instDesc.transform[3] = 0.0f;
+	instDesc.transform[4] = 0.0f; instDesc.transform[5] = 1.0f; instDesc.transform[6] = 0.0f; instDesc.transform[7] = 0.0f;
+	instDesc.transform[8] = 0.0f; instDesc.transform[9] = 0.0f; instDesc.transform[10] = 1.0f; instDesc.transform[11] = 0.0f;
+
+	model->dxrInstance = glRaytracingCreateInstance(&instDesc);
+	model->dxrValid = (model->dxrInstance != 0);
+}
+
 // Q2 counterpart
 static void Mod_LoadVertexes(model_t* loadmodel, const byte* mod_base, const lump_t* l)
 {
@@ -400,6 +670,7 @@ static void CalcSurfaceExtents(const model_t* loadmodel, msurface_t* s)
 	}
 }
 
+static void Mod_AccumulateSurfaceNormal(model_t* model, const msurface_t* surf);
 static void Mod_LoadFaces(model_t* loadmodel, const byte* mod_base, const lump_t* l)
 {
 	const dface_t* in = (const dface_t*)(mod_base + l->fileofs);
@@ -475,7 +746,13 @@ static void Mod_LoadFaces(model_t* loadmodel, const byte* mod_base, const lump_t
 			LM_CreateSurfaceLightmap(out);
 
 		if (!(out->texinfo->flags & SURF_WARP))
+		{
+			Mod_AccumulateSurfaceNormal(loadmodel, out);
+			for (int i = 0; i < loadmodel->numvertexes; ++i)
+				Mod_NormalizeVec3(loadmodel->vertexes[i].normal);
+
 			LM_BuildPolygonFromSurface(loadmodel, out);
+		}
 	}
 
 	LM_EndBuildingLightmaps();
@@ -649,6 +926,67 @@ static void Mod_LoadSubmodels(model_t* loadmodel, byte* mod_base, const lump_t* 
 	}
 }
 
+
+static void Mod_AddVec3(float a[3], const float b[3])
+{
+	a[0] += b[0];
+	a[1] += b[1];
+	a[2] += b[2];
+}
+
+static void Mod_AccumulateSurfaceNormal(model_t* model, const msurface_t* surf)
+{
+	if (surf->numedges < 3)
+		return;
+
+	const int i0 = Mod_GetFaceVertexIndex(model, surf, 0);
+	const int i1 = Mod_GetFaceVertexIndex(model, surf, 1);
+	const int i2 = Mod_GetFaceVertexIndex(model, surf, 2);
+
+	const mvertex_t* v0 = &model->vertexes[i0];
+	const mvertex_t* v1 = &model->vertexes[i1];
+	const mvertex_t* v2 = &model->vertexes[i2];
+
+	float e0[3];
+	float e1[3];
+	float faceNormal[3];
+
+	Mod_SubtractVec3(v1->position, v0->position, e0);
+	Mod_SubtractVec3(v2->position, v0->position, e1);
+	Mod_CrossProduct(e0, e1, faceNormal);
+	Mod_NormalizeVec3(faceNormal);
+
+	if (Mod_DotProduct(faceNormal, surf->plane->normal) < 0.0f)
+	{
+		faceNormal[0] = -faceNormal[0];
+		faceNormal[1] = -faceNormal[1];
+		faceNormal[2] = -faceNormal[2];
+	}
+
+	if (surf->flags & SURF_PLANEBACK)
+	{
+		faceNormal[0] = -faceNormal[0];
+		faceNormal[1] = -faceNormal[1];
+		faceNormal[2] = -faceNormal[2];
+	}
+
+	for (int j = 0; j < surf->numedges; ++j)
+	{
+		const int vIndex = Mod_GetFaceVertexIndex(model, surf, j);
+		Mod_AddVec3(model->vertexes[vIndex].normal, faceNormal);
+	}
+}
+
+static void Mod_ClearVertexNormals(model_t* model)
+{
+	for (int i = 0; i < model->numvertexes; ++i)
+	{
+		model->vertexes[i].normal[0] = 0.0f;
+		model->vertexes[i].normal[1] = 0.0f;
+		model->vertexes[i].normal[2] = 0.0f;
+	}
+}
+
 // Q2 counterpart
 static void Mod_LoadBrushModel(model_t* mod, void* buffer)
 {
@@ -704,6 +1042,18 @@ static void Mod_LoadBrushModel(model_t* mod, void* buffer)
 
 		mod_inline[i].numleafs = bm->visleafs;
 	}
+
+	// DXR world geometry build
+	mod->dxrMesh = 0;
+	mod->dxrInstance = 0;
+	mod->dxrValid = false;
+	mod->dxrVertices = NULL;
+	mod->dxrIndices = NULL;
+	mod->dxrVertexCount = 0;
+	mod->dxrIndexCount = 0;
+
+	Mod_BuildDXRMeshData(mod);
+	Mod_CreateDXRBSPResource(mod);
 }
 
 #pragma endregion

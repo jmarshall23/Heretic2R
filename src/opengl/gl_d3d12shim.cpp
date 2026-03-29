@@ -375,6 +375,7 @@ struct GLState
     float curU[QD3D12_MaxTextureUnits] = {};
     float curV[QD3D12_MaxTextureUnits] = {};
     float curColor[4] = { 1, 1, 1, 1 };
+    float curNormal[3] = { 0, 0, 0 };
     std::vector<GLVertex> immediateVerts;
 
     GLenum matrixMode = GL_MODELVIEW;
@@ -3398,6 +3399,11 @@ extern "C" void APIENTRY glVertex3f(GLfloat x, GLfloat y, GLfloat z)
     v.g = g_gl.curColor[1];
     v.b = g_gl.curColor[2];
     v.a = g_gl.curColor[3];
+
+    v.nx = g_gl.curNormal[0];
+    v.ny = g_gl.curNormal[1];
+    v.nz = g_gl.curNormal[2];
+
     g_gl.immediateVerts.push_back(v);
 }
 
@@ -4465,13 +4471,9 @@ extern "C" void APIENTRY glVertex2i(GLint x, GLint y)
 
 extern "C" void APIENTRY glNormal3f(GLfloat x, GLfloat y, GLfloat z)
 {
-	// Immediate mode only needs a current normal if your Begin/Vertex path tracks it.
-	// For now this is a harmless compatibility stub unless you add curNormal[3].
-	// If you want full immediate-mode lighting correctness, add curNormal[] to GLState
-	// and consume it in your glVertex* emitters.
-	(void)x;
-	(void)y;
-	(void)z;
+	g_gl.curNormal[0] = x;
+	g_gl.curNormal[1] = y;
+	g_gl.curNormal[2] = z;
 }
 
 extern "C" void APIENTRY glActiveTexture(GLenum texture)

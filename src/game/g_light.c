@@ -112,17 +112,17 @@ void LightUse(edict_t* self, edict_t* other, edict_t* activator) //mxd. Named 'l
 // Default _cone value is 10 (used to set size of light for spotlights)
 void SP_light(edict_t* self)
 {
-	// No targeted lights in deathmatch, because they cause global messages.
-	if (self->targetname == NULL || DEATHMATCH)
-	{
-		G_FreeEdict(self);
-	}
-	else if (self->style >= 32)
+// jmarshall - real time lighting.
+	if (self->style >= 32)
 	{
 		self->use = LightUse;
 		const char* str = ((self->spawnflags & SF_LIGHT_START_OFF) ? "a" : "m"); //mxd
 		gi.configstring(CS_LIGHTS + self->style, str);
+		return;
 	}
+
+	gi.linkentity(self);
+// jmarshall end
 }
 
 #pragma endregion

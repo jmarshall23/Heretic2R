@@ -15,7 +15,7 @@ typedef struct Poly_s
 	float fraction;
 	int numverts;
 	int flags;
-	float (*verts)[7];
+	float (*verts)[10];
 } Poly_t;
 
 typedef struct Surface_s

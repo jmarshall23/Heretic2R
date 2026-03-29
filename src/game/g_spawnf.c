@@ -183,9 +183,10 @@ static char* ED_ParseEdict(char* data, edict_t* ent)
 			gi.error("ED_ParseEntity: closing brace without data");
 
 		ent_initialized = true;
-
+// jmarshall - dxr we deal with _ prefixed attributes now.
 		// Keynames with a leading underscore are used for utility comments, and are immediately discarded.
-		if (keyname[0] != '_')
+		//if (keyname[0] != '_')
+// jmarshall end
 			ED_ParseField(keyname, com_token, ent);
 	}
 

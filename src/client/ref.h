@@ -75,6 +75,9 @@ typedef struct entity_s
 			struct image_s** skins;		// Pointer to the list of clientinfo skins.
 			char skinname[MAX_QPATH];	// For specific path to skin. //TODO: unused.
 
+			int light;
+			vec3_t lightColor;
+
 			paletteRGB_t absLight; //TODO: never set?
 			byte padFor_3byte_absLight;
 

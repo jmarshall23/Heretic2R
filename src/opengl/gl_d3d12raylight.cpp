@@ -1550,9 +1550,9 @@ void RayGen()
     float upness = saturate(N.z * 0.5 + 0.5);
 
     float3 skyColor =
-        float3(0.5, 0.5, 0.5) * (0.35 + 0.65 * upness);
+        float3(0.15, 0.25, 0.45) * (0.35 + 0.65 * upness);
 
-    float skyStrength = 2.0;
+    float skyStrength = 1;
 
     float3 lightingAccum = 0.05;
     lightingAccum += skyColor * (skyStrength * skyVis);
@@ -1644,7 +1644,7 @@ void RayGen()
         }
     }
 
-    lightingAccum = lightingAccum * ao * 1.5;
+    lightingAccum = lightingAccum * ao * 2.2;
 
     if(geoFlag == GEOMETRY_FLAG_SKELETAL) {
         lightingAccum = lightingAccum * 1.2;

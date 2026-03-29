@@ -755,6 +755,9 @@ typedef struct entity_state_s
 	byte modelindex;		// Tells client which model do draw.
 	// byte Padding here.
 
+	int light;
+	vec3_t lightColor;
+
 	short clientnum;		// In Quake 2, the client num was passed in skinnum. We need this value, however.
 	
 	char skinname[MAX_QPATH];	// For specific path to skin.
