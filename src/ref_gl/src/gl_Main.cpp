@@ -470,7 +470,7 @@ static void R_SetPerspective(const GLdouble fovy) // YQ2
 {
 	// gluPerspective style parameters.
 	static const GLdouble zNear = 1.0; // Q2: 4.0
-	const GLdouble zFar = (GLdouble)r_farclipdist->value;
+	const GLdouble zFar = (GLdouble)r_farclipdist->value * 2;
 	const GLdouble aspectratio = (GLdouble)r_newrefdef.width / r_newrefdef.height;
 
 	// Traditional gluPerspective calculations - https://youtu.be/YqSNGcF5nvM?t=644
@@ -593,12 +593,11 @@ static void R_WaterFog(void) // H2: GL_WaterFog
 
 static void R_Clear(void)
 {
+	glClear(GL_COLOR_BUFFER_BIT);
+
 	if ((int)gl_ztrick->value) //TODO: mxd. No fog rendering when gl_ztrick is enabled. Curious...
 	{
 		static int trickframe;
-
-		if ((int)gl_clear->value)
-			glClear(GL_COLOR_BUFFER_BIT);
 
 		trickframe++;
 
@@ -986,6 +985,7 @@ static void R_RenderView(const refdef_t* fd)
 	R_DrawWorld();
 	R_DrawEntitiesOnList();
 	//R_RenderDlights();
+	R_DrawSkyBox();
 
 	glFinish();
 	glLightScene();

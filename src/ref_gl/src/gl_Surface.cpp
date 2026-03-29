@@ -1089,7 +1089,6 @@ void R_DrawWorld(void)
 	R_BlendLightmaps(r_worldmodel);
 
 	//mxd. Skip H2 gl_drawmode logic.
-	R_DrawSkyBox();
 	R_DrawTriangleOutlines();
 }
 
